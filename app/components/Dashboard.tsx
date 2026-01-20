@@ -21,15 +21,44 @@ import {
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://dashboard-backend:8080';
 
 export default function Dashboard() {
-    const { data: permanence, error: errPerm } = useSWR('/api/permanence', fetcher, { refreshInterval: 300000 });
-    const { data: tickets, error: errTick } = useSWR('/api/tickets', fetcher, { refreshInterval: 300000 });
-    const { data: as400Prod, error: errAsProd } = useSWR('/api/as400/prod', fetcher, { refreshInterval: 300000 });
-    const { data: as400Test, error: errAsTest } = useSWR('/api/as400/test', fetcher, { refreshInterval: 300000 });
-    const { data: as400Form, error: errAsForm } = useSWR('/api/as400/form', fetcher, { refreshInterval: 300000 });
-    const { data: as400PreProd, error: errAsPreProd } = useSWR('/api/as400/preProd', fetcher, { refreshInterval: 300000 });
+    const { data: permanence, error: errPerm } = useSWR(
+        `${BACKEND_URL}/api/permanence`,
+        fetcher,
+        { refreshInterval: 300000 }
+    );
+
+    const { data: tickets, error: errTick } = useSWR(
+        `${BACKEND_URL}/api/tickets`,
+        fetcher,
+        { refreshInterval: 300000 }
+    );
+
+    const { data: as400Prod, error: errAsProd } = useSWR(
+        `${BACKEND_URL}/api/as400/prod`,
+        fetcher,
+        { refreshInterval: 300000 }
+    );
+
+    const { data: as400Test, error: errAsTest } = useSWR(
+        `${BACKEND_URL}/api/as400/test`,
+        fetcher,
+        { refreshInterval: 300000 }
+    );
+
+    const { data: as400Form, error: errAsForm } = useSWR(
+        `${BACKEND_URL}/api/as400/form`,
+        fetcher,
+        { refreshInterval: 300000 }
+    );
+
+    const { data: as400PreProd, error: errAsPreProd } = useSWR(
+        `${BACKEND_URL}/api/as400/preProd`,
+        fetcher,
+        { refreshInterval: 300000 }
+    );
 
     const [currentAs400Index, setCurrentAs400Index] = useState(0);
     const [currentTicketView, setCurrentTicketView] = useState(0);
