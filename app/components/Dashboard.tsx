@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://dashboard-backend:8080';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://dashboard-dtn.maisonsetcites.fr';
 
 export default function Dashboard() {
     const { data: permanence, error: errPerm } = useSWR(
