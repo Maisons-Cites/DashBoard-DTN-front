@@ -22,6 +22,7 @@ import {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+
 export default function Dashboard() {
     const { data: permanence, error: errPerm } = useSWR('/api/permanence', fetcher, { refreshInterval: 300000 });
     const { data: tickets, error: errTick } = useSWR('/api/tickets', fetcher, { refreshInterval: 300000 });
@@ -121,7 +122,7 @@ export default function Dashboard() {
     return (
         <div className="h-screen w-screen bg-gradient-to-br from-blue-900 via-gray-800 to-blue-900 overflow-hidden">
             <div className="h-full flex flex-col p-4">
-                {/* Header - Réduit */}
+                {/* Header */}
                 <div className="text-center mb-3">
                     <h1 className="text-3xl font-bold text-white mb-1 flex items-center justify-center gap-3">
                         <Gauge size={36} />
@@ -133,57 +134,55 @@ export default function Dashboard() {
                     </p>
                 </div>
 
-                {/* Permanence Section - Optimisée */}
-                {currentPeriod !== 'none' && (
-                    <div className="bg-white rounded-xl shadow-2xl p-4 mb-3">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                                <Timer size={32} />
-                                PERMANENCE {periodLabel}
-                            </h2>
-                            <div className="flex items-center gap-4">
-                                <span className="text-gray-600 text-base">{periodTime}</span>
-                                <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-full text-3xl font-bold shadow-lg">
+                {/* Grid principal - 3 colonnes égales */}
+                <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
+                    {/* Permanence Section - Même hauteur que les autres */}
+                    {currentPeriod !== 'none' && (
+                        <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    <Timer size={28} />
+                                    PERMANENCE {periodLabel}
+                                </h2>
+                                <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2 rounded-full text-2xl font-bold shadow-lg">
                                     {currentTotal}
                                 </div>
                             </div>
-                        </div>
+                            <p className="text-sm text-gray-600 mb-3 text-center">{periodTime}</p>
 
-                        <div className="grid grid-cols-4 gap-4">
-                            {Object.entries(currentTeams).map(([team, trigrams]) => (
-                                <div key={team} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-3 border-2 border-gray-200">
-                                    <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">{team}</p>
-                                    <div className="space-y-2">
-                                        {(trigrams as string[]).map((trigram) => {
-                                            const user = users[trigram];
-                                            return (
-                                                <div key={trigram} className="flex items-center gap-2">
-                                                    {user?.photoBase64 ? (
-                                                        <img
-                                                            src={user.photoBase64}
-                                                            alt={user.displayName}
-                                                            className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-md"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs shadow-md">
-                                                            {trigram}
-                                                        </div>
-                                                    )}
-                                                    <p className="text-xs font-semibold text-gray-900 truncate">
-                                                        {user?.displayName || trigram}
-                                                    </p>
-                                                </div>
-                                            );
-                                        })}
+                            <div className="grid grid-cols-2 gap-3 flex-1 overflow-auto">
+                                {Object.entries(currentTeams).map(([team, trigrams]) => (
+                                    <div key={team} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-3 border-2 border-gray-200">
+                                        <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">{team}</p>
+                                        <div className="space-y-2">
+                                            {(trigrams as string[]).map((trigram) => {
+                                                const user = users[trigram];
+                                                return (
+                                                    <div key={trigram} className="flex items-center gap-2">
+                                                        {user?.photoBase64 ? (
+                                                            <img
+                                                                src={user.photoBase64}
+                                                                alt={user.displayName}
+                                                                className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-md"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                                                                {trigram}
+                                                            </div>
+                                                        )}
+                                                        <p className="text-xs font-semibold text-gray-900 truncate">
+                                                            {user?.displayName || trigram}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Bottom Section - Optimisé pour 1920x1080 */}
-                <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
                     {/* Tickets Carousel */}
                     <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
                         <div className="flex items-center justify-between mb-4">
@@ -205,7 +204,6 @@ export default function Dashboard() {
 
                         <div className="grid grid-cols-2 gap-4 flex-1">
                             {currentTickets.items.map((item, idx) => {
-                                // Correction principale ici
                                 const status = getTicketStatus(item.value, 'threshold' in item ? item.threshold : undefined);
 
                                 return (
@@ -249,12 +247,12 @@ export default function Dashboard() {
                         </p>
                     </div>
 
-                    {/* AS/400 Carousel */}
+                    {/* IBM i Carousel */}
                     <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                                 <Server size={28} />
-                                STATUT AS/400
+                                STATUT IBM i
                             </h2>
                             <div className="flex space-x-2">
                                 {as400Environments.map((_, idx) => (
