@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
     Ticket,
     MessageSquare,
@@ -60,25 +60,7 @@ export default function Dashboard() {
         { refreshInterval: 300000 }
     );
 
-    const [currentAs400Index, setCurrentAs400Index] = useState(0);
-    const [currentTicketView, setCurrentTicketView] = useState(0);
-
-    const isLoading = !permanence || !tickets || !as400Prod || !as400Test || !as400Form || !as400PreProd;
     const hasError = errPerm || errTick || errAsProd || errAsTest || errAsForm || errAsPreProd;
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentAs400Index((prev) => (prev + 1) % 4);
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentTicketView((prev) => (prev + 1) % 2);
-        }, 6000);
-        return () => clearInterval(interval);
-    }, []);
 
     if (hasError) {
         return (
@@ -96,19 +78,10 @@ export default function Dashboard() {
         );
     }
 
-    const permanenceToday = permanence.permanence_aujourdhui;
+    const isLoading = !permanence || !tickets || !as400Prod || !as400Test || !as400Form || !as400PreProd;
     if (isLoading) return <div className="flex items-center justify-center h-screen text-gray-500 text-xl">Chargement...</div>;
 
     const { date, p1_by_team, p2_by_team, total_p1, total_p2, users } = permanence.permanence_aujourdhui;
-
-    const as400Environments = [
-        { name: 'PRODUCTION', data: as400Prod, color: 'bg-blue-500', icon: Building2 },
-        { name: 'TEST', data: as400Test, color: 'bg-purple-500', icon: Activity },
-        { name: 'FORMATION', data: as400Form, color: 'bg-orange-500', icon: Users2 },
-        { name: 'PRÉ-PROD', data: as400PreProd, color: 'bg-indigo-500', icon: HardDrive },
-    ];
-
-    const currentAs400 = as400Environments[currentAs400Index];
 
     const currentHour = new Date().getHours();
     const isMorning = currentHour >= 8 && currentHour < 13;
@@ -116,222 +89,181 @@ export default function Dashboard() {
     const currentPeriod = isMorning ? 'morning' : isAfternoon ? 'afternoon' : 'none';
     const currentTeams = isMorning ? p1_by_team : isAfternoon ? p2_by_team : {};
     const currentTotal = isMorning ? total_p1 : isAfternoon ? total_p2 : 0;
-    const periodLabel = isMorning ? 'MATIN' : 'APRÈS-MIDI';
-    const periodTime = isMorning ? '8h30 - 12h' : '13h - 17h';
+    const periodLabel = isMorning ? 'MATIN' : isAfternoon ? 'APRÈS-MIDI' : '';
+    const periodTime = isMorning ? '8h30 – 12h' : isAfternoon ? '13h – 17h' : '';
 
     const getTicketStatus = (count: number, threshold?: number) => {
-        if (!threshold) return { color: 'text-gray-700', bg: 'bg-gradient-to-br from-gray-50 to-gray-100', type: 'neutral' };
-        if (count >= threshold * 1.5) return { color: 'text-red-600', bg: 'bg-gradient-to-br from-red-50 to-red-100', type: 'error' };
-        if (count >= threshold) return { color: 'text-orange-600', bg: 'bg-gradient-to-br from-orange-50 to-orange-100', type: 'warning' };
-        return { color: 'text-green-600', bg: 'bg-gradient-to-br from-green-50 to-green-100', type: 'good' };
+        if (!threshold) return { color: 'text-gray-700', bg: 'bg-gray-50', type: 'neutral' };
+        if (count >= threshold * 1.5) return { color: 'text-red-700', bg: 'bg-red-50', type: 'error' };
+        if (count >= threshold) return { color: 'text-orange-700', bg: 'bg-orange-50', type: 'warning' };
+        return { color: 'text-green-700', bg: 'bg-green-50', type: 'good' };
     };
 
-    const ticketViews = [
-        {
-            title: 'TICKETS EN ATTENTE',
-            icon: <Clock3 size={28} />,
-            items: [
-                { label: 'En cours', value: tickets.tickets_en_cours, threshold: 400, icon: <Ticket size={48} strokeWidth={1.5} /> },
-                { label: 'Non assignés', value: tickets.tickets_non_assignes, threshold: 100, icon: <AlertTriangle size={48} strokeWidth={1.5} /> },
-            ],
-        },
-        {
-            title: 'ACTIVITÉ DU JOUR',
-            icon: <Activity size={28} />,
-            items: [
-                { label: 'Résolus', value: tickets.resolus_aujourdhui, icon: <CheckCircle2 size={48} strokeWidth={1.5} /> },
-                { label: 'Créés', value: tickets.crees_aujourdhui, icon: <MessageSquare size={48} strokeWidth={1.5} /> },
-            ],
-        },
+    const as400Environments = [
+        { name: 'PROD', data: as400Prod, color: 'bg-blue-600', icon: Building2 },
+        { name: 'TEST', data: as400Test, color: 'bg-purple-600', icon: Activity },
+        { name: 'FORM', data: as400Form, color: 'bg-orange-600', icon: Users2 },
+        { name: 'PRE-PROD', data: as400PreProd, color: 'bg-indigo-600', icon: HardDrive },
     ];
 
-    const currentTickets = ticketViews[currentTicketView];
-    const CurrentAs400Icon = currentAs400.icon;
-
     return (
-        <div className="h-screen w-screen bg-gradient-to-br from-blue-900 via-gray-800 to-blue-900 overflow-hidden">
-            <div className="h-full flex flex-col p-4">
+        <div className="h-screen w-screen bg-gradient-to-br from-blue-950 via-gray-900 to-blue-950 text-white overflow-hidden">
+            <div className="h-full flex flex-col p-5">
                 {/* Header */}
-                <div className="text-center mb-3">
-                    <h1 className="text-3xl font-bold text-white mb-1 flex items-center justify-center gap-3">
-                        <Gauge size={36} />
+                <div className="text-center mb-5">
+                    <h1 className="text-4xl font-bold flex items-center justify-center gap-4">
+                        <Gauge size={40} className="text-blue-400" />
                         DASHBOARD DTN
                     </h1>
-                    <p className="text-lg text-gray-300 flex items-center justify-center gap-2">
+                    <p className="text-lg text-gray-400 mt-1 flex items-center justify-center gap-2">
                         <Calendar size={18} />
-                        {date}
+                        {date} — {periodLabel && `${periodLabel} (${periodTime})`}
                     </p>
                 </div>
 
-                {/* Grid principal - 3 colonnes égales */}
-                <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
-                    {/* Permanence Section - Même hauteur que les autres */}
+                {/* Contenu principal */}
+                <div className="flex-1 grid grid-rows-[auto_1fr] gap-5 min-h-0">
+                    {/* 1. PERMANENCE – plein largeur */}
                     {currentPeriod !== 'none' && (
-                        <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
+                        <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-5 shadow-xl">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                    <Timer size={28} />
-                                    PERMANENCE {periodLabel}
+                                <h2 className="text-2xl font-bold flex items-center gap-3">
+                                    <Timer size={32} className="text-blue-400" />
+                                    Permanence {periodLabel}
                                 </h2>
-                                <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2 rounded-full text-2xl font-bold shadow-lg">
+                                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2 rounded-full text-3xl font-bold shadow-lg">
                                     {currentTotal}
                                 </div>
                             </div>
-                            <p className="text-sm text-gray-600 mb-3 text-center">{periodTime}</p>
 
-                            <div className="grid grid-cols-2 gap-3 flex-1 overflow-auto">
-                                {Object.entries(currentTeams).map(([team, trigrams]) => (
-                                    <div key={team} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-3 border-2 border-gray-200">
-                                        <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">{team}</p>
-                                        <div className="space-y-2">
-                                            {(trigrams as string[]).map((trigram) => {
-                                                const user = users[trigram];
-                                                return (
-                                                    <div key={trigram} className="flex items-center gap-2">
-                                                        {user?.photoBase64 ? (
-                                                            <img
-                                                                src={user.photoBase64}
-                                                                alt={user.displayName}
-                                                                className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-md"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs shadow-md">
-                                                                {trigram}
+                            {/* Vignettes full-width avec scroll horizontal */}
+                            <div className="overflow-x-auto pb-3 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                                <div className="flex gap-4 min-w-max">
+                                    {Object.entries(currentTeams).map(([team, trigrams]) => (
+                                        <div key={team} className="min-w-[220px] bg-gray-800/70 rounded-xl p-4 border border-gray-700">
+                                            <p className="text-sm font-bold text-gray-300 mb-3 uppercase tracking-wider">{team}</p>
+                                            <div className="space-y-3">
+                                                {(trigrams as string[]).map((trigram) => {
+                                                    const user = users[trigram];
+                                                    return (
+                                                        <div key={trigram} className="flex items-center gap-3">
+                                                            {user?.photoBase64 ? (
+                                                                <img
+                                                                    src={user.photoBase64}
+                                                                    alt={user.displayName}
+                                                                    className="w-12 h-12 rounded-full object-cover border-2 border-blue-500/40 shadow-md"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                                                                    {trigram}
+                                                                </div>
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <p className="font-medium truncate">{user?.displayName || trigram}</p>
                                                             </div>
-                                                        )}
-                                                        <p className="text-xs font-semibold text-gray-900 truncate">
-                                                            {user?.displayName || trigram}
-                                                        </p>
-                                                    </div>
-                                                );
-                                            })}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Tickets Carousel */}
-                    <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                {currentTickets.icon}
-                                {currentTickets.title}
-                            </h2>
-                            <div className="flex space-x-2">
-                                {ticketViews.map((_, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`h-2 rounded-full transition-all duration-500 ${
-                                            idx === currentTicketView ? 'w-8 bg-blue-500' : 'w-2 bg-gray-300'
-                                        }`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 flex-1">
-                            {currentTickets.items.map((item, idx) => {
-                                const status = getTicketStatus(item.value, 'threshold' in item ? item.threshold : undefined);
-
-                                return (
-                                    <div
-                                        key={idx}
-                                        className={`${status.bg} rounded-xl p-4 border-2 border-gray-200 hover:scale-105 transition-all duration-500 flex flex-col items-center justify-center shadow-lg`}
-                                    >
-                                        <div className="text-gray-600 mb-3">
-                                            {item.icon}
-                                        </div>
-
-                                        <div className="text-center mb-4">
-                                            <p className="text-gray-700 font-semibold text-lg">{item.label}</p>
-                                            {'threshold' in item && item.threshold && (
-                                                <p className="text-xs text-gray-500 mt-1">Seuil : {item.threshold}</p>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center gap-4">
-                                            {status.type === 'good' ? (
-                                                <CheckCircle size={42} className="text-green-600" strokeWidth={1.8} />
-                                            ) : status.type === 'warning' ? (
-                                                <AlertTriangle size={42} className="text-orange-600" strokeWidth={1.8} />
-                                            ) : status.type === 'error' ? (
-                                                <XCircle size={42} className="text-red-600" strokeWidth={1.8} />
-                                            ) : (
-                                                <Ticket size={42} className="text-gray-600" strokeWidth={1.8} />
-                                            )}
-
-                                            <span className={`text-6xl font-extrabold ${status.color} tracking-tight`}>
+                    {/* 2. Tickets + Statut IBM i – grille de petites cartes */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr">
+                        {/* Tickets – 2 cartes */}
+                        <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-5 col-span-2 lg:col-span-2 flex flex-col">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                <Clock3 size={24} />
+                                Tickets en attente
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4 flex-1">
+                                {[
+                                    { label: 'En cours', value: tickets?.tickets_en_cours ?? 0, threshold: 400, icon: Ticket },
+                                    { label: 'Non assignés', value: tickets?.tickets_non_assignes ?? 0, threshold: 100, icon: AlertTriangle },
+                                ].map((item, i) => {
+                                    const status = getTicketStatus(item.value, item.threshold);
+                                    return (
+                                        <div
+                                            key={i}
+                                            className={`${status.bg} rounded-xl p-4 flex flex-col items-center justify-center border border-gray-700/30 shadow-sm hover:scale-[1.03] transition-transform`}
+                                        >
+                                            <item.icon size={36} className="mb-2 opacity-80" />
+                                            <p className="text-sm text-gray-300 mb-1">{item.label}</p>
+                                            <p className={`text-4xl font-extrabold ${status.color}`}>
                                                 {item.value}
-                                            </span>
+                                            </p>
+                                            {item.threshold && (
+                                                <p className="text-xs text-gray-500 mt-1">seuil {item.threshold}</p>
+                                            )}
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
 
-                        <p className="text-xs text-gray-500 mt-3 text-center">
-                            Mis à jour : {new Date(tickets.updated_at).toLocaleTimeString('fr-FR')}
-                        </p>
-                    </div>
-
-                    {/* IBM i Carousel */}
-                    <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <Server size={28} />
-                                STATUT IBM i
-                            </h2>
-                            <div className="flex space-x-2">
-                                {as400Environments.map((_, idx) => (
+                        <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-5 col-span-2 lg:col-span-2 flex flex-col">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                <Activity size={24} />
+                                Activité jour
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4 flex-1">
+                                {[
+                                    { label: 'Résolus', value: tickets?.resolus_aujourdhui ?? 0, icon: CheckCircle2 },
+                                    { label: 'Créés', value: tickets?.crees_aujourdhui ?? 0, icon: MessageSquare },
+                                ].map((item, i) => (
                                     <div
-                                        key={idx}
-                                        className={`h-2 rounded-full transition-all duration-500 ${
-                                            idx === currentAs400Index ? 'w-8 bg-blue-500' : 'w-2 bg-gray-300'
-                                        }`}
-                                    />
+                                        key={i}
+                                        className="bg-gray-900/40 rounded-xl p-4 flex flex-col items-center justify-center border border-gray-700/30 shadow-sm hover:scale-[1.03] transition-transform"
+                                    >
+                                        <item.icon size={36} className="mb-2 text-blue-400" />
+                                        <p className="text-sm text-gray-300 mb-1">{item.label}</p>
+                                        <p className="text-4xl font-extrabold text-white">{item.value}</p>
+                                    </div>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border-2 border-gray-200 flex-1 flex flex-col justify-center">
-                            <div className={`${currentAs400.color} text-white px-4 py-2 rounded-xl text-center mb-5 shadow-lg flex items-center justify-center gap-3`}>
-                                <CurrentAs400Icon size={28} />
-                                <span className="text-xl font-bold">{currentAs400.name}</span>
-                            </div>
-
-                            <div className="flex items-center justify-center gap-8 mb-5">
+                        {/* Statut IBM i – 4 petites cartes */}
+                        {as400Environments.map((env, i) => {
+                            if (!env.data) return null;
+                            const { available, host, version, responseTime, timestamp } = env.data;
+                            return (
                                 <div
-                                    className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl animate-pulse ${
-                                        currentAs400.data.available ? 'bg-green-500' : 'bg-red-500'
-                                    }`}
+                                    key={i}
+                                    className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-4 flex flex-col justify-between hover:scale-[1.02] transition-transform"
                                 >
-                                    <div className="w-10 h-10 rounded-full bg-white"></div>
-                                </div>
-                                <div className="text-center">
-                                    <p className={`text-2xl font-bold mb-1 ${currentAs400.data.available ? 'text-green-600' : 'text-red-600'}`}>
-                                        {currentAs400.data.available ? 'DISPONIBLE' : 'INDISPONIBLE'}
-                                    </p>
-                                    <p className="text-lg font-semibold text-gray-800">{currentAs400.data.host}</p>
-                                </div>
-                            </div>
+                                    <div className={`${env.color} text-white px-3 py-1 rounded-lg text-sm font-bold mb-3 inline-block`}>
+                                        {env.name}
+                                    </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-white rounded-lg p-4 text-center shadow">
-                                    <p className="text-gray-600 text-xs mb-1">Version</p>
-                                    <p className="text-xl font-bold text-gray-900">{currentAs400.data.version}</p>
-                                </div>
-                                <div className="bg-white rounded-lg p-4 text-center shadow">
-                                    <p className="text-gray-600 text-xs mb-1">Temps de réponse</p>
-                                    <p className="text-xl font-bold text-blue-600">{currentAs400.data.responseTime}</p>
-                                </div>
-                            </div>
+                                    <div className="flex items-center justify-center gap-3 my-2">
+                                        <div
+                                            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
+                                                available ? 'bg-green-600' : 'bg-red-600'
+                                            }`}
+                                        >
+                                            <div className="w-5 h-5 rounded-full bg-white/30"></div>
+                                        </div>
+                                        <p className={`font-bold ${available ? 'text-green-400' : 'text-red-400'}`}>
+                                            {available ? 'OK' : 'HS'}
+                                        </p>
+                                    </div>
 
-                            <p className="text-xs text-gray-500 mt-4 text-center">
-                                Mis à jour : {new Date(currentAs400.data.timestamp).toLocaleTimeString('fr-FR')}
-                            </p>
-                        </div>
+                                    <div className="text-xs space-y-1 mt-2 text-center">
+                                        <p className="font-medium truncate">{host}</p>
+                                        <p>v{version}</p>
+                                        <p className="text-blue-300">{responseTime}</p>
+                                        <p className="text-gray-500 mt-2">
+                                            {new Date(timestamp).toLocaleTimeString('fr-FR')}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
