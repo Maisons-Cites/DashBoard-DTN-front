@@ -1,18 +1,22 @@
 'use client';
 
 import useSWR from 'swr';
+import { useState, useEffect } from 'react';
 import {
+    Ticket,
+    MessageSquare,
+    AlertTriangle,
+    CheckCircle,
+    XCircle,
     Gauge,
     Calendar,
-    Timer,
-    Activity,
-    Server,
-    Ticket,
-    AlertTriangle,
-    CheckCircle2,
-    MessageSquare,
     Building2,
+    Server,
+    Activity,
+    Timer,
     HardDrive,
+    CheckCircle2,
+    Clock3,
     Users2,
 } from 'lucide-react';
 
@@ -22,72 +26,6 @@ const fetcher = (url: string) => fetch(url).then((res) => {
 });
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://dashboard-dtn.maisonsetcites.fr';
-
-/* -------------------------------------------------------------------------- */
-/* COMPONENTS (identiques à ton mock) */
-/* -------------------------------------------------------------------------- */
-
-function TicketKpi({ icon: Icon, label, value, color }: any) {
-    return (
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 text-center shadow">
-            <Icon size={32} className={`mx-auto mb-2 ${color}`} />
-            <p className="text-4xl font-extrabold text-gray-900">{value}</p>
-            <p className="text-sm text-gray-600 mt-1">{label}</p>
-        </div>
-    );
-}
-
-function EnvCard({ env }: any) {
-    const Icon = env.icon;
-    return (
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 text-center shadow flex flex-col justify-between">
-            <div>
-                <Icon size={28} className="mx-auto text-blue-600 mb-2" />
-                <p className="font-bold text-gray-900">{env.name}</p>
-            </div>
-            <div
-                className={`mx-auto my-3 w-12 h-12 rounded-full ${
-                    env.status ? 'bg-green-500' : 'bg-red-500'
-                } flex items-center justify-center`}
-            >
-                <div className="w-5 h-5 bg-white rounded-full" />
-            </div>
-            <div>
-                <p
-                    className={`text-sm font-bold ${
-                        env.status ? 'text-green-600' : 'text-red-600'
-                    }`}
-                >
-                    {env.status ? 'DISPONIBLE' : 'INDISPONIBLE'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{env.host}</p>
-            </div>
-        </div>
-    );
-}
-
-function TeamCard({ team, trigram, name }: any) {
-    return (
-        <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 flex flex-col shadow">
-            <p className="text-xs font-extrabold uppercase tracking-widest text-gray-600">
-                {team}
-            </p>
-            <div className="flex flex-col items-center justify-center flex-1">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-3">
-                    {trigram}
-                </div>
-                <p className="text-lg font-bold text-gray-900 text-center leading-tight">
-                    {name}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">En permanence</p>
-            </div>
-        </div>
-    );
-}
-
-/* -------------------------------------------------------------------------- */
-/* PAGE */
-/* -------------------------------------------------------------------------- */
 
 export default function Dashboard() {
     const { data: permData } = useSWR(`${BACKEND_URL}/api/permanence`, fetcher, {
@@ -101,8 +39,25 @@ export default function Dashboard() {
     const { data: as400Form } = useSWR(`${BACKEND_URL}/api/as400/form`, fetcher, { refreshInterval: 300_000 });
     const { data: as400PreProd } = useSWR(`${BACKEND_URL}/api/as400/preProd`, fetcher, { refreshInterval: 300_000 });
 
+    const [currentAs400Index, setCurrentAs400Index] = useState(0);
+    const [currentTicketView, setCurrentTicketView] = useState(0);
+
     const loading = !permData || !ticketsData || !as400Prod || !as400Test || !as400Form || !as400PreProd;
     const hasError = !permData || !ticketsData;
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentAs400Index((prev) => (prev + 1) % 4);
+        }, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTicketView((prev) => (prev + 1) % 2);
+        }, 6000);
+        return () => clearInterval(interval);
+    }, []);
 
     if (hasError || loading) {
         return (
@@ -125,14 +80,6 @@ export default function Dashboard() {
     const periodLabel = isMorning ? 'MATIN' : isAfternoon ? 'APRÈS-MIDI' : '';
     const periodTime = isMorning ? '8h30 – 12h' : isAfternoon ? '13h – 17h' : '';
 
-    // Transformation : chaque équipe → une carte avec une personne (première du tableau)
-    // Si tu veux afficher TOUTES les personnes d'une équipe, dis-le-moi, je change ça !
-    const teamsList = Object.entries(currentTeams).map(([team, trigrams]: [string, any]) => {
-        const trigram = (trigrams as string[])[0] || '';
-        const name = users[trigram]?.displayName || trigram;
-        return { team, trigram, name };
-    });
-
     const tickets = {
         enCours: ticketsData.tickets_en_cours ?? 0,
         nonAssignes: ticketsData.tickets_non_assignes ?? 0,
@@ -140,83 +87,236 @@ export default function Dashboard() {
         crees: ticketsData.crees_aujourdhui ?? 0,
     };
 
-    const environments = [
-        { name: 'PRODUCTION', host: as400Prod?.host ?? '-', status: !!as400Prod?.available, icon: Building2 },
-        { name: 'TEST',       host: as400Test?.host ?? '-',  status: !!as400Test?.available,  icon: Activity },
-        { name: 'FORMATION',  host: as400Form?.host ?? '-',  status: !!as400Form?.available,  icon: Users2 },
-        { name: 'PRÉ-PROD',   host: as400PreProd?.host ?? '-', status: !!as400PreProd?.available, icon: HardDrive },
+    const as400Environments = [
+        { name: 'PRODUCTION', data: as400Prod, color: 'bg-blue-500', icon: Building2 },
+        { name: 'TEST', data: as400Test, color: 'bg-purple-500', icon: Activity },
+        { name: 'FORMATION', data: as400Form, color: 'bg-orange-500', icon: Users2 },
+        { name: 'PRÉ-PROD', data: as400PreProd, color: 'bg-indigo-500', icon: HardDrive },
     ];
 
+    const currentAs400 = as400Environments[currentAs400Index];
+
+    const getTicketStatus = (count: number, threshold?: number) => {
+        if (!threshold) return { color: 'text-gray-700', bg: 'bg-gradient-to-br from-gray-50 to-gray-100', type: 'neutral' };
+        if (count >= threshold * 1.5) return { color: 'text-red-600', bg: 'bg-gradient-to-br from-red-50 to-red-100', type: 'error' };
+        if (count >= threshold) return { color: 'text-orange-600', bg: 'bg-gradient-to-br from-orange-50 to-orange-100', type: 'warning' };
+        return { color: 'text-green-600', bg: 'bg-gradient-to-br from-green-50 to-green-100', type: 'good' };
+    };
+
+    const ticketViews = [
+        {
+            title: 'TICKETS EN ATTENTE',
+            icon: <Clock3 size={28} />,
+            items: [
+                { label: 'En cours', value: tickets.enCours, threshold: 400, icon: <Ticket size={48} strokeWidth={1.5} /> },
+                { label: 'Non assignés', value: tickets.nonAssignes, threshold: 100, icon: <AlertTriangle size={48} strokeWidth={1.5} /> },
+            ],
+        },
+        {
+            title: 'ACTIVITÉ DU JOUR',
+            icon: <Activity size={28} />,
+            items: [
+                { label: 'Résolus', value: tickets.resolus, icon: <CheckCircle2 size={48} strokeWidth={1.5} /> },
+                { label: 'Créés', value: tickets.crees, icon: <MessageSquare size={48} strokeWidth={1.5} /> },
+            ],
+        },
+    ];
+
+    const currentTickets = ticketViews[currentTicketView];
+    const CurrentAs400Icon = currentAs400.icon;
+
     return (
-        <div className="h-screen w-screen bg-gradient-to-br from-blue-900 via-slate-800 to-blue-900 p-4">
-            {/* HEADER */}
-            <header className="text-center mb-4">
-                <h1 className="text-3xl font-extrabold text-white flex justify-center gap-3">
-                    <Gauge size={34} />
-                    DASHBOARD DTN
-                </h1>
-                <p className="text-gray-300 flex justify-center gap-2 mt-1">
-                    <Calendar size={16} />
-                    {date}
-                </p>
-            </header>
-
-            {/* MAIN GRID */}
-            <div className="grid grid-cols-3 gap-4 h-[calc(100%-90px)]">
-                {/* PERMANENCE */}
-                <section className="bg-white rounded-2xl shadow-2xl p-4 flex flex-col">
-                    <div className="flex justify-between items-center mb-2">
-                        <h2 className="font-bold text-lg flex gap-2">
-                            <Timer size={20} />
-                            PERMANENCE {periodLabel}
-                        </h2>
-                        <span className="px-4 py-1 rounded-full bg-purple-600 text-white font-extrabold">
-              {isPermanenceTime ? currentTotal : '-'}
-            </span>
-                    </div>
-                    <p className="text-xs text-gray-500 text-center mb-3">
-                        {isPermanenceTime ? periodTime : 'Hors horaires de permanence'}
+        <div className="h-screen w-screen bg-gradient-to-br from-blue-900 via-gray-800 to-blue-900 overflow-hidden">
+            <div className="h-full flex flex-col p-4">
+                {/* Header */}
+                <div className="text-center mb-3">
+                    <h1 className="text-3xl font-bold text-white mb-1 flex items-center justify-center gap-3">
+                        <Gauge size={36} />
+                        DASHBOARD DTN
+                    </h1>
+                    <p className="text-lg text-gray-300 flex items-center justify-center gap-2">
+                        <Calendar size={18} />
+                        {date}
                     </p>
+                </div>
 
-                    {isPermanenceTime && teamsList.length > 0 ? (
+                {/* Grid principal - 3 colonnes égales */}
+                <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
+                    {/* Permanence Section */}
+                    <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <Timer size={28} />
+                                PERMANENCE {periodLabel}
+                            </h2>
+                            <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2 rounded-full text-2xl font-bold shadow-lg">
+                                {isPermanenceTime ? currentTotal : '-'}
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3 text-center">
+                            {isPermanenceTime ? periodTime : 'Hors horaires de permanence'}
+                        </p>
+
+                        {isPermanenceTime && Object.keys(currentTeams).length > 0 ? (
+                            <div className="grid grid-cols-2 gap-3 flex-1 overflow-auto">
+                                {Object.entries(currentTeams).map(([team, trigrams]) => (
+                                    <div key={team} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-3 border-2 border-gray-200">
+                                        <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">{team}</p>
+                                        <div className="space-y-2">
+                                            {(trigrams as string[]).map((trigram) => {
+                                                const user = users[trigram];
+                                                return (
+                                                    <div key={trigram} className="flex items-center gap-2">
+                                                        {user?.photoBase64 ? (
+                                                            <img
+                                                                src={user.photoBase64}
+                                                                alt={user.displayName}
+                                                                className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-md"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                                                                {trigram}
+                                                            </div>
+                                                        )}
+                                                        <p className="text-xs font-semibold text-gray-900 truncate">
+                                                            {user?.displayName || trigram}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-gray-500">
+                                <p className="text-lg">Aucune permanence en cours</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Tickets Carousel */}
+                    <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                {currentTickets.icon}
+                                {currentTickets.title}
+                            </h2>
+                            <div className="flex space-x-2">
+                                {ticketViews.map((_, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`h-2 rounded-full transition-all duration-500 ${
+                                            idx === currentTicketView ? 'w-8 bg-blue-500' : 'w-2 bg-gray-300'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4 flex-1">
-                            {teamsList.map(({ team, trigram, name }) => (
-                                <TeamCard key={team} team={team} trigram={trigram} name={name} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center text-gray-500">
-                            <p className="text-lg">Aucune permanence en cours</p>
-                        </div>
-                    )}
-                </section>
+                            {currentTickets.items.map((item, idx) => {
+                                const status = getTicketStatus(item.value, 'threshold' in item ? item.threshold : undefined);
 
-                {/* TICKETS */}
-                <section className="bg-white rounded-2xl shadow-2xl p-4 flex flex-col">
-                    <h2 className="font-bold text-lg flex gap-2 mb-4 justify-center">
-                        <Activity size={20} />
-                        TICKETS
-                    </h2>
-                    <div className="grid grid-cols-2 gap-4 flex-1">
-                        <TicketKpi icon={Ticket} label="En cours" value={tickets.enCours} color="text-blue-600" />
-                        <TicketKpi icon={AlertTriangle} label="Non assignés" value={tickets.nonAssignes} color="text-orange-600" />
-                        <TicketKpi icon={CheckCircle2} label="Résolus" value={tickets.resolus} color="text-green-600" />
-                        <TicketKpi icon={MessageSquare} label="Créés" value={tickets.crees} color="text-indigo-600" />
-                    </div>
-                </section>
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`${status.bg} rounded-xl p-4 border-2 border-gray-200 hover:scale-105 transition-all duration-500 flex flex-col items-center justify-center shadow-lg`}
+                                    >
+                                        <div className="text-gray-600 mb-3">
+                                            {item.icon}
+                                        </div>
 
-                {/* ENVIRONNEMENTS */}
-                <section className="bg-white rounded-2xl shadow-2xl p-4 flex flex-col">
-                    <h2 className="font-bold text-lg flex gap-2 mb-4 justify-center">
-                        <Server size={20} />
-                        ENVIRONNEMENTS IBM i
-                    </h2>
-                    <div className="grid grid-cols-2 gap-4 flex-1">
-                        {environments.map((env) => (
-                            <EnvCard key={env.name} env={env} />
-                        ))}
+                                        <div className="text-center mb-4">
+                                            <p className="text-gray-700 font-semibold text-lg">{item.label}</p>
+                                            {'threshold' in item && item.threshold && (
+                                                <p className="text-xs text-gray-500 mt-1">Seuil : {item.threshold}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-4">
+                                            {status.type === 'good' ? (
+                                                <CheckCircle size={42} className="text-green-600" strokeWidth={1.8} />
+                                            ) : status.type === 'warning' ? (
+                                                <AlertTriangle size={42} className="text-orange-600" strokeWidth={1.8} />
+                                            ) : status.type === 'error' ? (
+                                                <XCircle size={42} className="text-red-600" strokeWidth={1.8} />
+                                            ) : (
+                                                <Ticket size={42} className="text-gray-600" strokeWidth={1.8} />
+                                            )}
+
+                                            <span className={`text-6xl font-extrabold ${status.color} tracking-tight`}>
+                                                {item.value}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <p className="text-xs text-gray-500 mt-3 text-center">
+                            Mis à jour : {new Date(ticketsData.updated_at).toLocaleTimeString('fr-FR')}
+                        </p>
                     </div>
-                </section>
+
+                    {/* IBM i Carousel */}
+                    <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <Server size={28} />
+                                STATUT IBM i
+                            </h2>
+                            <div className="flex space-x-2">
+                                {as400Environments.map((_, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`h-2 rounded-full transition-all duration-500 ${
+                                            idx === currentAs400Index ? 'w-8 bg-blue-500' : 'w-2 bg-gray-300'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border-2 border-gray-200 flex-1 flex flex-col justify-center">
+                            <div className={`${currentAs400.color} text-white px-4 py-2 rounded-xl text-center mb-5 shadow-lg flex items-center justify-center gap-3`}>
+                                <CurrentAs400Icon size={28} />
+                                <span className="text-xl font-bold">{currentAs400.name}</span>
+                            </div>
+
+                            <div className="flex items-center justify-center gap-8 mb-5">
+                                <div
+                                    className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl animate-pulse ${
+                                        currentAs400.data?.available ? 'bg-green-500' : 'bg-red-500'
+                                    }`}
+                                >
+                                    <div className="w-10 h-10 rounded-full bg-white"></div>
+                                </div>
+                                <div className="text-center">
+                                    <p className={`text-2xl font-bold mb-1 ${currentAs400.data?.available ? 'text-green-600' : 'text-red-600'}`}>
+                                        {currentAs400.data?.available ? 'DISPONIBLE' : 'INDISPONIBLE'}
+                                    </p>
+                                    <p className="text-lg font-semibold text-gray-800">{currentAs400.data?.host || '-'}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-white rounded-lg p-4 text-center shadow">
+                                    <p className="text-gray-600 text-xs mb-1">Version</p>
+                                    <p className="text-xl font-bold text-gray-900">{currentAs400.data?.version || '-'}</p>
+                                </div>
+                                <div className="bg-white rounded-lg p-4 text-center shadow">
+                                    <p className="text-gray-600 text-xs mb-1">Temps de réponse</p>
+                                    <p className="text-xl font-bold text-blue-600">{currentAs400.data?.responseTime || '-'}</p>
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-gray-500 mt-4 text-center">
+                                Mis à jour : {currentAs400.data?.timestamp ? new Date(currentAs400.data.timestamp).toLocaleTimeString('fr-FR') : '-'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
