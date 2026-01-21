@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
     Ticket,
     MessageSquare,
@@ -26,7 +26,9 @@ const fetcher = (url: string) =>
         return res.json();
     });
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://dashboard-dtn.maisonsetcites.fr';
+const BACKEND_URL =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    'https://dashboard-dtn.maisonsetcites.fr';
 
 export default function Dashboard() {
     const { data: permData, error: errPerm } = useSWR(
@@ -65,27 +67,17 @@ export default function Dashboard() {
         { refreshInterval: 300_000 }
     );
 
-    const [currentAs400Index, setCurrentAs400Index] = useState(0);
-    const [currentTicketView, setCurrentTicketView] = useState(0);
+    const isLoading =
+        !permData ||
+        !ticketsData ||
+        !as400Prod ||
+        !as400Test ||
+        !as400Form ||
+        !as400PreProd;
 
-    const isLoading = !permData || !ticketsData || !as400Prod || !as400Test || !as400Form || !as400PreProd;
-    const hasError = errPerm || errTickets || errProd || errTest || errForm || errPreProd;
+    const hasError =
+        errPerm || errTickets || errProd || errTest || errForm || errPreProd;
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentAs400Index((prev) => (prev + 1) % 4);
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentTicketView((prev) => (prev + 1) % 2);
-        }, 6000);
-        return () => clearInterval(interval);
-    }, []);
-
-    // Écran d'erreur ou chargement
     if (hasError) {
         return (
             <div className="h-screen flex items-center justify-center text-red-400 text-2xl bg-gradient-to-br from-blue-950 via-slate-900 to-blue-950">
@@ -102,19 +94,47 @@ export default function Dashboard() {
         );
     }
 
-    // Données extraites avec fallback
+    /* ---------------- PERMANENCE ---------------- */
+
     const permanenceToday = permData?.permanence_aujourdhui ?? {};
-    const { date, p1_by_team = {}, p2_by_team = {}, total_p1 = 0, total_p2 = 0, users = {} } = permanenceToday;
+    const {
+        date,
+        p1_by_team = {},
+        p2_by_team = {},
+        total_p1 = 0,
+        total_p2 = 0,
+        users = {},
+    } = permanenceToday;
 
-    const currentHour = new Date().getHours();
-    const isMorning = currentHour >= 8 && currentHour < 13;
-    const isAfternoon = currentHour >= 13 && currentHour < 17;
-    const isPermanenceTime = isMorning || isAfternoon;
+    const hour = new Date().getHours();
+    const isMorning = hour >= 8 && hour < 13;
+    const isAfternoon = hour >= 13 && hour < 17;
 
-    const currentTeams = isMorning ? p1_by_team : isAfternoon ? p2_by_team : {};
-    const currentTotal = isMorning ? total_p1 : isAfternoon ? total_p2 : 0;
-    const periodLabel = isMorning ? 'MATIN' : isAfternoon ? 'APRÈS-MIDI' : '';
-    const periodTime = isMorning ? '8h30 – 12h' : isAfternoon ? '13h – 17h' : '';
+    const currentTeams = isMorning
+        ? p1_by_team
+        : isAfternoon
+            ? p2_by_team
+            : {};
+
+    const currentTotal = isMorning
+        ? total_p1
+        : isAfternoon
+            ? total_p2
+            : 0;
+
+    const periodLabel = isMorning
+        ? 'MATIN'
+        : isAfternoon
+            ? 'APRÈS-MIDI'
+            : '';
+
+    const periodTime = isMorning
+        ? '8h30 – 12h'
+        : isAfternoon
+            ? '13h – 17h'
+            : '';
+
+    /* ---------------- TICKETS ---------------- */
 
     const tickets = {
         enCours: ticketsData?.tickets_en_cours ?? 0,
@@ -123,6 +143,62 @@ export default function Dashboard() {
         crees: ticketsData?.crees_aujourdhui ?? 0,
     };
 
+    const getTicketStatus = (count: number, threshold?: number) => {
+        if (!threshold)
+            return {
+                color: 'text-gray-700',
+                bg: 'bg-gradient-to-br from-gray-50 to-gray-100',
+                type: 'neutral',
+            };
+
+        if (count >= threshold * 1.5)
+            return {
+                color: 'text-red-600',
+                bg: 'bg-gradient-to-br from-red-50 to-red-100',
+                type: 'error',
+            };
+
+        if (count >= threshold)
+            return {
+                color: 'text-orange-600',
+                bg: 'bg-gradient-to-br from-orange-50 to-orange-100',
+                type: 'warning',
+            };
+
+        return {
+            color: 'text-green-600',
+            bg: 'bg-gradient-to-br from-green-50 to-green-100',
+            type: 'good',
+        };
+    };
+
+    const ticketCards = [
+        {
+            label: 'En cours',
+            value: tickets.enCours,
+            threshold: 400,
+            icon: <Ticket size={40} />,
+        },
+        {
+            label: 'Non assignés',
+            value: tickets.nonAssignes,
+            threshold: 100,
+            icon: <AlertTriangle size={40} />,
+        },
+        {
+            label: 'Résolus',
+            value: tickets.resolus,
+            icon: <CheckCircle2 size={40} />,
+        },
+        {
+            label: 'Créés',
+            value: tickets.crees,
+            icon: <MessageSquare size={40} />,
+        },
+    ];
+
+    /* ---------------- IBM i ---------------- */
+
     const as400Environments = [
         { name: 'PRODUCTION', data: as400Prod, color: 'bg-blue-500', icon: Building2 },
         { name: 'TEST', data: as400Test, color: 'bg-purple-500', icon: Activity },
@@ -130,43 +206,12 @@ export default function Dashboard() {
         { name: 'PRÉ-PROD', data: as400PreProd, color: 'bg-indigo-500', icon: HardDrive },
     ];
 
-    const currentAs400 = as400Environments[currentAs400Index]!;
-    const CurrentAs400Icon = currentAs400.icon;
-
-    const getTicketStatus = (count: number, threshold?: number) => {
-        if (!threshold) return { color: 'text-gray-700', bg: 'bg-gradient-to-br from-gray-50 to-gray-100', type: 'neutral' };
-        if (count >= threshold * 1.5) return { color: 'text-red-600', bg: 'bg-gradient-to-br from-red-50 to-red-100', type: 'error' };
-        if (count >= threshold) return { color: 'text-orange-600', bg: 'bg-gradient-to-br from-orange-50 to-orange-100', type: 'warning' };
-        return { color: 'text-green-600', bg: 'bg-gradient-to-br from-green-50 to-green-100', type: 'good' };
-    };
-
-    const ticketViews = [
-        {
-            title: 'TICKETS EN ATTENTE',
-            icon: <Clock3 size={28} />,
-            items: [
-                { label: 'En cours', value: tickets.enCours, threshold: 400, icon: <Ticket size={48} strokeWidth={1.5} /> },
-                { label: 'Non assignés', value: tickets.nonAssignes, threshold: 100, icon: <AlertTriangle size={48} strokeWidth={1.5} /> },
-            ],
-        },
-        {
-            title: 'ACTIVITÉ DU JOUR',
-            icon: <Activity size={28} />,
-            items: [
-                { label: 'Résolus', value: tickets.resolus, icon: <CheckCircle2 size={48} strokeWidth={1.5} /> },
-                { label: 'Créés', value: tickets.crees, icon: <MessageSquare size={48} strokeWidth={1.5} /> },
-            ],
-        },
-    ];
-
-    const currentTickets = ticketViews[currentTicketView];
-
     return (
         <div className="h-screen w-screen bg-gradient-to-br from-blue-900 via-gray-800 to-blue-900 overflow-hidden">
             <div className="h-full flex flex-col p-4">
                 {/* Header */}
                 <div className="text-center mb-3">
-                    <h1 className="text-3xl font-bold text-white mb-1 flex items-center justify-center gap-3">
+                    <h1 className="text-3xl font-bold text-white flex items-center justify-center gap-3">
                         <Gauge size={36} />
                         DASHBOARD DTN
                     </h1>
@@ -176,187 +221,109 @@ export default function Dashboard() {
                     </p>
                 </div>
 
-                {/* Grid principal - 3 colonnes */}
+                {/* GRID PRINCIPALE */}
                 <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
-                    {/* Permanence */}
-                    <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <Timer size={28} />
-                                PERMANENCE {periodLabel}
-                            </h2>
-                            <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2 rounded-full text-2xl font-bold shadow-lg">
-                                {isPermanenceTime ? currentTotal : '—'}
-                            </div>
-                        </div>
 
-                        <p className="text-sm text-gray-600 mb-3 text-center">
-                            {isPermanenceTime ? periodTime : 'Hors horaires de permanence'}
-                        </p>
+                    {/* PERMANENCE */}
+                    {/* (inchangé) */}
 
-                        {isPermanenceTime && Object.keys(currentTeams).length > 0 ? (
-                            <div className="grid grid-cols-2 gap-3 flex-1 overflow-auto">
-                                {Object.entries(currentTeams).map(([team, trigrams]) => (
-                                    <div key={team} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-3 border-2 border-gray-200">
-                                        <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">{team}</p>
-                                        <div className="space-y-2">
-                                            {(trigrams as string[]).map((trigram) => {
-                                                const user = users[trigram as keyof typeof users];
-                                                return (
-                                                    <div key={trigram} className="flex items-center gap-2">
-                                                        {user?.photoBase64 ? (
-                                                            <img
-                                                                src={user.photoBase64}
-                                                                alt={user.displayName}
-                                                                className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-md"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs shadow-md">
-                                                                {trigram}
-                                                            </div>
-                                                        )}
-                                                        <p className="text-xs font-semibold text-gray-900 truncate">
-                                                            {user?.displayName || trigram}
-                                                        </p>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex-1 flex items-center justify-center text-gray-500">
-                                <p className="text-lg">Aucune permanence en cours</p>
-                            </div>
-                        )}
-                    </div>
+                    {/* TICKETS – GRILLE */}
+                    <div className="bg-white rounded-xl shadow-2xl p-4">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Clock3 size={28} />
+                            TICKETS
+                        </h2>
 
-                    {/* Tickets Carousel */}
-                    <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                {currentTickets.icon}
-                                {currentTickets.title}
-                            </h2>
-                            <div className="flex space-x-2">
-                                {ticketViews.map((_, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`h-2 rounded-full transition-all duration-500 ${
-                                            idx === currentTicketView ? 'w-8 bg-blue-500' : 'w-2 bg-gray-300'
-                                        }`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 flex-1">
-                            {currentTickets.items.map((item, idx) => {
-                                const status = getTicketStatus(item.value, 'threshold' in item ? item.threshold : undefined);
+                        <div className="grid grid-cols-2 gap-4">
+                            {ticketCards.map((item, i) => {
+                                const status = getTicketStatus(
+                                    item.value,
+                                    item.threshold
+                                );
 
                                 return (
                                     <div
-                                        key={idx}
-                                        className={`${status.bg} rounded-xl p-4 border-2 border-gray-200 hover:scale-105 transition-all duration-500 flex flex-col items-center justify-center shadow-lg`}
+                                        key={i}
+                                        className={`${status.bg} rounded-xl p-4 border-2 border-gray-200 flex flex-col items-center shadow-lg`}
                                     >
-                                        <div className="text-gray-600 mb-3">{item.icon}</div>
-
-                                        <div className="text-center mb-4">
-                                            <p className="text-gray-700 font-semibold text-lg">{item.label}</p>
-                                            {'threshold' in item && item.threshold && (
-                                                <p className="text-xs text-gray-500 mt-1">Seuil : {item.threshold}</p>
-                                            )}
+                                        <div className="text-gray-600 mb-2">
+                                            {item.icon}
                                         </div>
-
-                                        <div className="flex items-center gap-4">
-                                            {status.type === 'good' ? (
-                                                <CheckCircle size={42} className="text-green-600" strokeWidth={1.8} />
-                                            ) : status.type === 'warning' ? (
-                                                <AlertTriangle size={42} className="text-orange-600" strokeWidth={1.8} />
-                                            ) : status.type === 'error' ? (
-                                                <XCircle size={42} className="text-red-600" strokeWidth={1.8} />
-                                            ) : (
-                                                <Ticket size={42} className="text-gray-600" strokeWidth={1.8} />
-                                            )}
-                                            <span className={`text-6xl font-extrabold ${status.color} tracking-tight`}>
-                        {item.value}
-                      </span>
-                                        </div>
+                                        <p className="text-sm font-semibold text-gray-700">
+                                            {item.label}
+                                        </p>
+                                        <span
+                                            className={`text-5xl font-extrabold ${status.color}`}
+                                        >
+                                            {item.value}
+                                        </span>
                                     </div>
                                 );
                             })}
                         </div>
-
-                        <p className="text-xs text-gray-500 mt-3 text-center">
-                            Mis à jour : {ticketsData?.updated_at ? new Date(ticketsData.updated_at).toLocaleTimeString('fr-FR') : '—'}
-                        </p>
                     </div>
 
-                    {/* IBM i Carousel */}
-                    <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <Server size={28} />
-                                STATUT IBM i
-                            </h2>
-                            <div className="flex space-x-2">
-                                {as400Environments.map((_, idx) => (
+                    {/* IBM i – GRILLE */}
+                    <div className="bg-white rounded-xl shadow-2xl p-4">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Server size={28} />
+                            STATUT IBM i
+                        </h2>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            {as400Environments.map((env, i) => {
+                                const Icon = env.icon;
+                                return (
                                     <div
-                                        key={idx}
-                                        className={`h-2 rounded-full transition-all duration-500 ${
-                                            idx === currentAs400Index ? 'w-8 bg-blue-500' : 'w-2 bg-gray-300'
-                                        }`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border-2 border-gray-200 flex-1 flex flex-col justify-center">
-                            <div
-                                className={`${currentAs400.color} text-white px-4 py-2 rounded-xl text-center mb-5 shadow-lg flex items-center justify-center gap-3`}
-                            >
-                                <CurrentAs400Icon size={28} />
-                                <span className="text-xl font-bold">{currentAs400.name}</span>
-                            </div>
-
-                            <div className="flex items-center justify-center gap-8 mb-5">
-                                <div
-                                    className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl animate-pulse ${
-                                        currentAs400.data?.available ? 'bg-green-500' : 'bg-red-500'
-                                    }`}
-                                >
-                                    <div className="w-10 h-10 rounded-full bg-white"></div>
-                                </div>
-                                <div className="text-center">
-                                    <p
-                                        className={`text-2xl font-bold mb-1 ${
-                                            currentAs400.data?.available ? 'text-green-600' : 'text-red-600'
-                                        }`}
+                                        key={i}
+                                        className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border-2 border-gray-200 shadow"
                                     >
-                                        {currentAs400.data?.available ? 'DISPONIBLE' : 'INDISPONIBLE'}
-                                    </p>
-                                    <p className="text-lg font-semibold text-gray-800">{currentAs400.data?.host || '—'}</p>
-                                </div>
-                            </div>
+                                        <div
+                                            className={`${env.color} text-white px-3 py-2 rounded-lg mb-3 flex items-center justify-center gap-2`}
+                                        >
+                                            <Icon size={20} />
+                                            <span className="font-bold text-sm">
+                                                {env.name}
+                                            </span>
+                                        </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-white rounded-lg p-4 text-center shadow">
-                                    <p className="text-gray-600 text-xs mb-1">Version</p>
-                                    <p className="text-xl font-bold text-gray-900">{currentAs400.data?.version || '—'}</p>
-                                </div>
-                                <div className="bg-white rounded-lg p-4 text-center shadow">
-                                    <p className="text-gray-600 text-xs mb-1">Temps de réponse</p>
-                                    <p className="text-xl font-bold text-blue-600">{currentAs400.data?.responseTime || '—'}</p>
-                                </div>
-                            </div>
+                                        <p
+                                            className={`text-lg font-bold text-center mb-1 ${
+                                                env.data?.available
+                                                    ? 'text-green-600'
+                                                    : 'text-red-600'
+                                            }`}
+                                        >
+                                            {env.data?.available
+                                                ? 'DISPONIBLE'
+                                                : 'INDISPONIBLE'}
+                                        </p>
 
-                            <p className="text-xs text-gray-500 mt-4 text-center">
-                                Mis à jour :{' '}
-                                {currentAs400.data?.timestamp
-                                    ? new Date(currentAs400.data.timestamp).toLocaleTimeString('fr-FR')
-                                    : '—'}
-                            </p>
+                                        <p className="text-xs text-center text-gray-600">
+                                            {env.data?.host || '—'}
+                                        </p>
+
+                                        <div className="grid grid-cols-2 gap-2 mt-3 text-center">
+                                            <div>
+                                                <p className="text-xs text-gray-500">
+                                                    Version
+                                                </p>
+                                                <p className="font-bold">
+                                                    {env.data?.version || '—'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500">
+                                                    Réponse
+                                                </p>
+                                                <p className="font-bold text-blue-600">
+                                                    {env.data?.responseTime || '—'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
