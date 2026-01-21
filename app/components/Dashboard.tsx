@@ -94,6 +94,46 @@ export default function Dashboard() {
         );
     }
 
+
+    function TeamPersonCard({
+                                team,
+                                trigram,
+                                user,
+                            }: {
+        team: string;
+        trigram: string;
+        user?: any;
+    }) {
+        return (
+            <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 flex flex-col shadow">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-gray-600 mb-2">
+                    {team}
+                </p>
+
+                <div className="flex flex-col items-center justify-center flex-1">
+                    {user?.photoBase64 ? (
+                        <img
+                            src={user.photoBase64}
+                            alt={user.displayName}
+                            className="w-24 h-24 rounded-full object-cover shadow-lg mb-3"
+                        />
+                    ) : (
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-extrabold shadow-lg mb-3">
+                            {trigram}
+                        </div>
+                    )}
+
+                    <p className="text-lg font-bold text-gray-900 text-center leading-tight">
+                        {user?.displayName || trigram}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                        En permanence
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     /* ---------------- PERMANENCE ---------------- */
 
     const permanenceToday = permData?.permanence_aujourdhui ?? {};
@@ -225,7 +265,34 @@ export default function Dashboard() {
                 <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
 
                     {/* PERMANENCE */}
-                    {/* (inchangé) */}
+                    <section className="bg-white rounded-2xl shadow-2xl p-4 flex flex-col">
+                        <div className="flex justify-between items-center mb-2">
+                            <h2 className="font-bold text-lg flex gap-2">
+                                <Timer size={20} /> PERMANENCE {periodLabel}
+                            </h2>
+                            <span className="px-4 py-1 rounded-full bg-purple-600 text-white font-extrabold">
+                            {currentTotal}
+                        </span>
+                        </div>
+
+                        <p className="text-xs text-gray-500 text-center mb-3">
+                            {periodTime}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-4 flex-1">
+                            {Object.entries(currentTeams).flatMap(
+                                ([team, trigrams]: any) =>
+                                    trigrams.map((tri: string) => (
+                                        <TeamPersonCard
+                                            key={`${team}-${tri}`}
+                                            team={team}
+                                            trigram={tri}
+                                            user={users[tri]}
+                                        />
+                                    ))
+                            )}
+                        </div>
+                    </section>
 
                     {/* TICKETS – GRILLE */}
                     <div className="bg-white rounded-xl shadow-2xl p-4">
