@@ -126,9 +126,6 @@ export default function Dashboard() {
                     <p className="text-lg font-bold text-gray-900 text-center leading-tight">
                         {user?.displayName || trigram}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                        En permanence
-                    </p>
                 </div>
             </div>
         );
@@ -270,9 +267,6 @@ export default function Dashboard() {
                             <h2 className="font-bold text-lg flex gap-2">
                                 <Timer size={20} /> PERMANENCE {periodLabel}
                             </h2>
-                            <span className="px-4 py-1 rounded-full bg-purple-600 text-white font-extrabold">
-                            {currentTotal}
-                        </span>
                         </div>
 
                         <p className="text-xs text-gray-500 text-center mb-3">
