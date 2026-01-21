@@ -1,233 +1,221 @@
 'use client';
 
 import useSWR from 'swr';
-import { useState, useEffect } from 'react';
 import {
-    Ticket,
-    MessageSquare,
-    AlertTriangle,
-    CheckCircle,
-    XCircle,
     Gauge,
     Calendar,
-    Building2,
-    Server,
-    Activity,
     Timer,
-    HardDrive,
+    Activity,
+    Server,
+    Ticket,
+    AlertTriangle,
     CheckCircle2,
-    Clock3,
+    MessageSquare,
+    Building2,
+    HardDrive,
     Users2,
 } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
-const BACKEND_URL =
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    'https://dashboard-dtn.maisonsetcites.fr';
+const fetcher = (url: string) => fetch(url).then((res) => {
+    if (!res.ok) throw new Error('Erreur réseau');
+    return res.json();
+});
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://dashboard-dtn.maisonsetcites.fr';
 
 /* -------------------------------------------------------------------------- */
-/*                                  HELPERS                                   */
+/* COMPONENTS (identiques à ton mock) */
 /* -------------------------------------------------------------------------- */
 
-function UserRow({ user, trigram }: any) {
+function TicketKpi({ icon: Icon, label, value, color }: any) {
     return (
-        <div className="flex items-center gap-4 p-2 rounded-lg bg-white shadow-sm">
-            {user?.photoBase64 ? (
-                <img
-                    src={user.photoBase64}
-                    className="w-16 h-16 rounded-full object-cover border-4 border-blue-500"
-                    alt={user.displayName}
-                />
-            ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 text-center shadow">
+            <Icon size={32} className={`mx-auto mb-2 ${color}`} />
+            <p className="text-4xl font-extrabold text-gray-900">{value}</p>
+            <p className="text-sm text-gray-600 mt-1">{label}</p>
+        </div>
+    );
+}
+
+function EnvCard({ env }: any) {
+    const Icon = env.icon;
+    return (
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 text-center shadow flex flex-col justify-between">
+            <div>
+                <Icon size={28} className="mx-auto text-blue-600 mb-2" />
+                <p className="font-bold text-gray-900">{env.name}</p>
+            </div>
+            <div
+                className={`mx-auto my-3 w-12 h-12 rounded-full ${
+                    env.status ? 'bg-green-500' : 'bg-red-500'
+                } flex items-center justify-center`}
+            >
+                <div className="w-5 h-5 bg-white rounded-full" />
+            </div>
+            <div>
+                <p
+                    className={`text-sm font-bold ${
+                        env.status ? 'text-green-600' : 'text-red-600'
+                    }`}
+                >
+                    {env.status ? 'DISPONIBLE' : 'INDISPONIBLE'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">{env.host}</p>
+            </div>
+        </div>
+    );
+}
+
+function TeamCard({ team, trigram, name }: any) {
+    return (
+        <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 flex flex-col shadow">
+            <p className="text-xs font-extrabold uppercase tracking-widest text-gray-600">
+                {team}
+            </p>
+            <div className="flex flex-col items-center justify-center flex-1">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-3">
                     {trigram}
                 </div>
-            )}
-
-            <div className="min-w-0">
-                <p className="text-lg font-bold text-gray-900 truncate">
-                    {user?.displayName || trigram}
+                <p className="text-lg font-bold text-gray-900 text-center leading-tight">
+                    {name}
                 </p>
-                <p className="text-sm text-gray-500">En permanence</p>
-            </div>
-        </div>
-    );
-}
-
-function PermanenceTeam({ team, users, trigrams }: any) {
-    return (
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border-2 border-gray-200">
-            <h3 className="text-sm font-extrabold text-gray-700 mb-4 uppercase tracking-widest">
-                {team}
-            </h3>
-
-            <div className="space-y-3">
-                {trigrams.map((tri: string) => (
-                    <UserRow key={tri} trigram={tri} user={users[tri]} />
-                ))}
+                <p className="text-sm text-gray-500 mt-1">En permanence</p>
             </div>
         </div>
     );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                 DASHBOARD                                  */
+/* PAGE */
 /* -------------------------------------------------------------------------- */
 
 export default function Dashboard() {
-    const { data: permanence } = useSWR(
-        `${BACKEND_URL}/api/permanence`,
-        fetcher,
-        { refreshInterval: 300000 }
-    );
+    const { data: permData } = useSWR(`${BACKEND_URL}/api/permanence`, fetcher, {
+        refreshInterval: 300_000,
+    });
+    const { data: ticketsData } = useSWR(`${BACKEND_URL}/api/tickets`, fetcher, {
+        refreshInterval: 300_000,
+    });
+    const { data: as400Prod } = useSWR(`${BACKEND_URL}/api/as400/prod`, fetcher, { refreshInterval: 300_000 });
+    const { data: as400Test } = useSWR(`${BACKEND_URL}/api/as400/test`, fetcher, { refreshInterval: 300_000 });
+    const { data: as400Form } = useSWR(`${BACKEND_URL}/api/as400/form`, fetcher, { refreshInterval: 300_000 });
+    const { data: as400PreProd } = useSWR(`${BACKEND_URL}/api/as400/preProd`, fetcher, { refreshInterval: 300_000 });
 
-    const { data: tickets } = useSWR(
-        `${BACKEND_URL}/api/tickets`,
-        fetcher,
-        { refreshInterval: 300000 }
-    );
+    const loading = !permData || !ticketsData || !as400Prod || !as400Test || !as400Form || !as400PreProd;
+    const hasError = !permData || !ticketsData;
 
-    const { data: as400Prod } = useSWR(`${BACKEND_URL}/api/as400/prod`, fetcher);
-    const { data: as400Test } = useSWR(`${BACKEND_URL}/api/as400/test`, fetcher);
-    const { data: as400Form } = useSWR(`${BACKEND_URL}/api/as400/form`, fetcher);
-    const { data: as400PreProd } = useSWR(
-        `${BACKEND_URL}/api/as400/preProd`,
-        fetcher
-    );
-
-    const [as400Index, setAs400Index] = useState(0);
-
-    useEffect(() => {
-        const i = setInterval(() => setAs400Index(v => (v + 1) % 4), 6000);
-        return () => clearInterval(i);
-    }, []);
-
-    if (!permanence || !tickets) {
+    if (hasError || loading) {
         return (
-            <div className="h-screen flex items-center justify-center text-xl text-gray-300">
-                Chargement…
+            <div className="h-screen flex items-center justify-center text-white text-2xl bg-gradient-to-br from-blue-900 via-slate-800 to-blue-900">
+                {hasError ? 'Erreur de chargement' : 'Chargement...'}
             </div>
         );
     }
 
-    const {
-        date,
-        p1_by_team,
-        p2_by_team,
-        total_p1,
-        total_p2,
-        users,
-    } = permanence.permanence_aujourdhui;
+    const { date, p1_by_team, p2_by_team, total_p1, total_p2, users } = permData.permanence_aujourdhui;
 
-    const hour = new Date().getHours();
-    const isMorning = hour < 13;
+    // Détection de la période actuelle
+    const currentHour = new Date().getHours();
+    const isMorning = currentHour >= 8 && currentHour < 13;
+    const isAfternoon = currentHour >= 13 && currentHour < 17;
+    const isPermanenceTime = isMorning || isAfternoon;
 
-    const teams = isMorning ? p1_by_team : p2_by_team;
-    const total = isMorning ? total_p1 : total_p2;
+    const currentTeams = isMorning ? p1_by_team : isAfternoon ? p2_by_team : {};
+    const currentTotal = isMorning ? total_p1 : isAfternoon ? total_p2 : 0;
+    const periodLabel = isMorning ? 'MATIN' : isAfternoon ? 'APRÈS-MIDI' : '';
+    const periodTime = isMorning ? '8h30 – 12h' : isAfternoon ? '13h – 17h' : '';
 
-    const as400s = [
-        { name: 'PRODUCTION', data: as400Prod, icon: Building2 },
-        { name: 'TEST', data: as400Test, icon: Activity },
-        { name: 'FORMATION', data: as400Form, icon: Users2 },
-        { name: 'PRÉ-PROD', data: as400PreProd, icon: HardDrive },
+    // Transformation : chaque équipe → une carte avec une personne (première du tableau)
+    // Si tu veux afficher TOUTES les personnes d'une équipe, dis-le-moi, je change ça !
+    const teamsList = Object.entries(currentTeams).map(([team, trigrams]: [string, any]) => {
+        const trigram = (trigrams as string[])[0] || '';
+        const name = users[trigram]?.displayName || trigram;
+        return { team, trigram, name };
+    });
+
+    const tickets = {
+        enCours: ticketsData.tickets_en_cours ?? 0,
+        nonAssignes: ticketsData.tickets_non_assignes ?? 0,
+        resolus: ticketsData.resolus_aujourdhui ?? 0,
+        crees: ticketsData.crees_aujourdhui ?? 0,
+    };
+
+    const environments = [
+        { name: 'PRODUCTION', host: as400Prod?.host ?? '-', status: !!as400Prod?.available, icon: Building2 },
+        { name: 'TEST',       host: as400Test?.host ?? '-',  status: !!as400Test?.available,  icon: Activity },
+        { name: 'FORMATION',  host: as400Form?.host ?? '-',  status: !!as400Form?.available,  icon: Users2 },
+        { name: 'PRÉ-PROD',   host: as400PreProd?.host ?? '-', status: !!as400PreProd?.available, icon: HardDrive },
     ];
 
-    const currentAs400 = as400s[as400Index];
-
-    /* ---------------------------------------------------------------------- */
-
     return (
-        <div className="h-screen w-screen bg-gradient-to-br from-blue-900 via-slate-800 to-blue-900 p-6">
+        <div className="h-screen w-screen bg-gradient-to-br from-blue-900 via-slate-800 to-blue-900 p-4">
             {/* HEADER */}
-            <header className="text-center mb-6">
-                <h1 className="text-4xl font-extrabold text-white flex justify-center gap-3">
-                    <Gauge size={40} /> DASHBOARD DTN
+            <header className="text-center mb-4">
+                <h1 className="text-3xl font-extrabold text-white flex justify-center gap-3">
+                    <Gauge size={34} />
+                    DASHBOARD DTN
                 </h1>
-                <p className="text-lg text-gray-300 flex justify-center gap-2 mt-1">
-                    <Calendar size={18} /> {date}
+                <p className="text-gray-300 flex justify-center gap-2 mt-1">
+                    <Calendar size={16} />
+                    {date}
                 </p>
             </header>
 
-            {/* GRID */}
-            <div className="grid grid-cols-3 gap-6 h-[calc(100%-120px)]">
+            {/* MAIN GRID */}
+            <div className="grid grid-cols-3 gap-4 h-[calc(100%-90px)]">
                 {/* PERMANENCE */}
-                <section className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold flex gap-2">
-                            <Timer /> PERMANENCE {isMorning ? 'MATIN' : 'APRÈS-MIDI'}
+                <section className="bg-white rounded-2xl shadow-2xl p-4 flex flex-col">
+                    <div className="flex justify-between items-center mb-2">
+                        <h2 className="font-bold text-lg flex gap-2">
+                            <Timer size={20} />
+                            PERMANENCE {periodLabel}
                         </h2>
-                        <div className="px-6 py-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white text-3xl font-extrabold">
-                            {total}
-                        </div>
+                        <span className="px-4 py-1 rounded-full bg-purple-600 text-white font-extrabold">
+              {isPermanenceTime ? currentTotal : '-'}
+            </span>
                     </div>
+                    <p className="text-xs text-gray-500 text-center mb-3">
+                        {isPermanenceTime ? periodTime : 'Hors horaires de permanence'}
+                    </p>
 
-                    <div className="grid grid-cols-2 gap-4 overflow-auto">
-                        {Object.entries(teams).map(([team, trigrams]) => (
-                            <PermanenceTeam
-                                key={team}
-                                team={team}
-                                trigrams={trigrams}
-                                users={users}
-                            />
-                        ))}
-                    </div>
+                    {isPermanenceTime && teamsList.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-4 flex-1">
+                            {teamsList.map(({ team, trigram, name }) => (
+                                <TeamCard key={team} team={team} trigram={trigram} name={name} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center text-gray-500">
+                            <p className="text-lg">Aucune permanence en cours</p>
+                        </div>
+                    )}
                 </section>
 
                 {/* TICKETS */}
-                <section className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col justify-center text-center">
-                    <h2 className="text-2xl font-bold mb-6 flex justify-center gap-2">
-                        <Activity /> ACTIVITÉ DU JOUR
+                <section className="bg-white rounded-2xl shadow-2xl p-4 flex flex-col">
+                    <h2 className="font-bold text-lg flex gap-2 mb-4 justify-center">
+                        <Activity size={20} />
+                        TICKETS
                     </h2>
-
-                    <div className="flex justify-around">
-                        <div>
-                            <CheckCircle2 size={48} className="mx-auto text-green-600" />
-                            <p className="text-5xl font-extrabold text-gray-900 mt-2">
-                                {tickets.resolus_aujourdhui}
-                            </p>
-                            <p className="text-gray-500">Résolus</p>
-                        </div>
-
-                        <div>
-                            <MessageSquare size={48} className="mx-auto text-blue-600" />
-                            <p className="text-5xl font-extrabold text-gray-900 mt-2">
-                                {tickets.crees_aujourdhui}
-                            </p>
-                            <p className="text-gray-500">Créés</p>
-                        </div>
+                    <div className="grid grid-cols-2 gap-4 flex-1">
+                        <TicketKpi icon={Ticket} label="En cours" value={tickets.enCours} color="text-blue-600" />
+                        <TicketKpi icon={AlertTriangle} label="Non assignés" value={tickets.nonAssignes} color="text-orange-600" />
+                        <TicketKpi icon={CheckCircle2} label="Résolus" value={tickets.resolus} color="text-green-600" />
+                        <TicketKpi icon={MessageSquare} label="Créés" value={tickets.crees} color="text-indigo-600" />
                     </div>
                 </section>
 
-                {/* IBM i */}
-                <section className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col justify-center text-center">
-                    <h2 className="text-2xl font-bold mb-6 flex justify-center gap-2">
-                        <Server /> STATUT IBM i
+                {/* ENVIRONNEMENTS */}
+                <section className="bg-white rounded-2xl shadow-2xl p-4 flex flex-col">
+                    <h2 className="font-bold text-lg flex gap-2 mb-4 justify-center">
+                        <Server size={20} />
+                        ENVIRONNEMENTS IBM i
                     </h2>
-
-                    <currentAs400.icon
-                        size={42}
-                        className="mx-auto mb-4 text-blue-600"
-                    />
-
-                    <p className="text-2xl font-bold mb-2">
-                        {currentAs400.name}
-                    </p>
-
-                    <div
-                        className={`mx-auto w-24 h-24 rounded-full ${
-                            currentAs400.data.available ? 'bg-green-500' : 'bg-red-500'
-                        } flex items-center justify-center`}
-                    >
-                        <div className="w-10 h-10 bg-white rounded-full" />
+                    <div className="grid grid-cols-2 gap-4 flex-1">
+                        {environments.map((env) => (
+                            <EnvCard key={env.name} env={env} />
+                        ))}
                     </div>
-
-                    <p className="mt-4 text-xl font-bold">
-                        {currentAs400.data.available ? 'DISPONIBLE' : 'INDISPONIBLE'}
-                    </p>
-
-                    <p className="text-gray-500 mt-2">
-                        {currentAs400.data.host}
-                    </p>
                 </section>
             </div>
         </div>
