@@ -20,30 +20,56 @@ import {
     Users2,
 } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url).then((res) => {
-    if (!res.ok) throw new Error('Erreur réseau');
-    return res.json();
-});
+const fetcher = (url: string) =>
+    fetch(url).then((res) => {
+        if (!res.ok) throw new Error('Erreur réseau');
+        return res.json();
+    });
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://dashboard-dtn.maisonsetcites.fr';
 
 export default function Dashboard() {
-    const { data: permData } = useSWR(`${BACKEND_URL}/api/permanence`, fetcher, {
-        refreshInterval: 300_000,
-    });
-    const { data: ticketsData } = useSWR(`${BACKEND_URL}/api/tickets`, fetcher, {
-        refreshInterval: 300_000,
-    });
-    const { data: as400Prod } = useSWR(`${BACKEND_URL}/api/as400/prod`, fetcher, { refreshInterval: 300_000 });
-    const { data: as400Test } = useSWR(`${BACKEND_URL}/api/as400/test`, fetcher, { refreshInterval: 300_000 });
-    const { data: as400Form } = useSWR(`${BACKEND_URL}/api/as400/form`, fetcher, { refreshInterval: 300_000 });
-    const { data: as400PreProd } = useSWR(`${BACKEND_URL}/api/as400/preProd`, fetcher, { refreshInterval: 300_000 });
+    const { data: permData, error: errPerm } = useSWR(
+        `${BACKEND_URL}/api/permanence`,
+        fetcher,
+        { refreshInterval: 300_000 }
+    );
+
+    const { data: ticketsData, error: errTickets } = useSWR(
+        `${BACKEND_URL}/api/tickets`,
+        fetcher,
+        { refreshInterval: 300_000 }
+    );
+
+    const { data: as400Prod, error: errProd } = useSWR(
+        `${BACKEND_URL}/api/as400/prod`,
+        fetcher,
+        { refreshInterval: 300_000 }
+    );
+
+    const { data: as400Test, error: errTest } = useSWR(
+        `${BACKEND_URL}/api/as400/test`,
+        fetcher,
+        { refreshInterval: 300_000 }
+    );
+
+    const { data: as400Form, error: errForm } = useSWR(
+        `${BACKEND_URL}/api/as400/form`,
+        fetcher,
+        { refreshInterval: 300_000 }
+    );
+
+    const { data: as400PreProd, error: errPreProd } = useSWR(
+        `${BACKEND_URL}/api/as400/preProd`,
+        fetcher,
+        { refreshInterval: 300_000 }
+    );
 
     const [currentAs400Index, setCurrentAs400Index] = useState(0);
     const [currentTicketView, setCurrentTicketView] = useState(0);
 
-    const loading = !permData || !ticketsData || !as400Prod || !as400Test || !as400Form || !as400PreProd;
-    const hasError = !permData || !ticketsData;
+    const isLoading = !permData || !ticketsData || !as400Prod || !as400Test || !as400Form || !as400PreProd;
+    const hasError = errPerm || errTickets || errProd || errTest || errForm || errPreProd;
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -59,17 +85,27 @@ export default function Dashboard() {
         return () => clearInterval(interval);
     }, []);
 
-    if (hasError || loading) {
+    // Écran d'erreur ou chargement
+    if (hasError) {
         return (
-            <div className="h-screen flex items-center justify-center text-white text-2xl bg-gradient-to-br from-blue-900 via-slate-800 to-blue-900">
-                {hasError ? 'Erreur de chargement' : 'Chargement...'}
+            <div className="h-screen flex items-center justify-center text-red-400 text-2xl bg-gradient-to-br from-blue-950 via-slate-900 to-blue-950">
+                Erreur de chargement des données
             </div>
         );
     }
 
-    const { date, p1_by_team, p2_by_team, total_p1, total_p2, users } = permData.permanence_aujourdhui;
+    if (isLoading) {
+        return (
+            <div className="h-screen flex items-center justify-center text-gray-300 text-2xl bg-gradient-to-br from-blue-900 via-slate-800 to-blue-900">
+                Chargement...
+            </div>
+        );
+    }
 
-    // Détection de la période actuelle
+    // Données extraites avec fallback
+    const permanenceToday = permData?.permanence_aujourdhui ?? {};
+    const { date, p1_by_team = {}, p2_by_team = {}, total_p1 = 0, total_p2 = 0, users = {} } = permanenceToday;
+
     const currentHour = new Date().getHours();
     const isMorning = currentHour >= 8 && currentHour < 13;
     const isAfternoon = currentHour >= 13 && currentHour < 17;
@@ -81,10 +117,10 @@ export default function Dashboard() {
     const periodTime = isMorning ? '8h30 – 12h' : isAfternoon ? '13h – 17h' : '';
 
     const tickets = {
-        enCours: ticketsData.tickets_en_cours ?? 0,
-        nonAssignes: ticketsData.tickets_non_assignes ?? 0,
-        resolus: ticketsData.resolus_aujourdhui ?? 0,
-        crees: ticketsData.crees_aujourdhui ?? 0,
+        enCours: ticketsData?.tickets_en_cours ?? 0,
+        nonAssignes: ticketsData?.tickets_non_assignes ?? 0,
+        resolus: ticketsData?.resolus_aujourdhui ?? 0,
+        crees: ticketsData?.crees_aujourdhui ?? 0,
     };
 
     const as400Environments = [
@@ -94,7 +130,8 @@ export default function Dashboard() {
         { name: 'PRÉ-PROD', data: as400PreProd, color: 'bg-indigo-500', icon: HardDrive },
     ];
 
-    const currentAs400 = as400Environments[currentAs400Index];
+    const currentAs400 = as400Environments[currentAs400Index]!;
+    const CurrentAs400Icon = currentAs400.icon;
 
     const getTicketStatus = (count: number, threshold?: number) => {
         if (!threshold) return { color: 'text-gray-700', bg: 'bg-gradient-to-br from-gray-50 to-gray-100', type: 'neutral' };
@@ -123,7 +160,6 @@ export default function Dashboard() {
     ];
 
     const currentTickets = ticketViews[currentTicketView];
-    const CurrentAs400Icon = currentAs400.icon;
 
     return (
         <div className="h-screen w-screen bg-gradient-to-br from-blue-900 via-gray-800 to-blue-900 overflow-hidden">
@@ -136,13 +172,13 @@ export default function Dashboard() {
                     </h1>
                     <p className="text-lg text-gray-300 flex items-center justify-center gap-2">
                         <Calendar size={18} />
-                        {date}
+                        {date || '—'}
                     </p>
                 </div>
 
-                {/* Grid principal - 3 colonnes égales */}
+                {/* Grid principal - 3 colonnes */}
                 <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
-                    {/* Permanence Section */}
+                    {/* Permanence */}
                     <div className="bg-white rounded-xl shadow-2xl p-4 flex flex-col">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -150,9 +186,10 @@ export default function Dashboard() {
                                 PERMANENCE {periodLabel}
                             </h2>
                             <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2 rounded-full text-2xl font-bold shadow-lg">
-                                {isPermanenceTime ? currentTotal : '-'}
+                                {isPermanenceTime ? currentTotal : '—'}
                             </div>
                         </div>
+
                         <p className="text-sm text-gray-600 mb-3 text-center">
                             {isPermanenceTime ? periodTime : 'Hors horaires de permanence'}
                         </p>
@@ -164,7 +201,7 @@ export default function Dashboard() {
                                         <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">{team}</p>
                                         <div className="space-y-2">
                                             {(trigrams as string[]).map((trigram) => {
-                                                const user = users[trigram];
+                                                const user = users[trigram as keyof typeof users];
                                                 return (
                                                     <div key={trigram} className="flex items-center gap-2">
                                                         {user?.photoBase64 ? (
@@ -223,9 +260,7 @@ export default function Dashboard() {
                                         key={idx}
                                         className={`${status.bg} rounded-xl p-4 border-2 border-gray-200 hover:scale-105 transition-all duration-500 flex flex-col items-center justify-center shadow-lg`}
                                     >
-                                        <div className="text-gray-600 mb-3">
-                                            {item.icon}
-                                        </div>
+                                        <div className="text-gray-600 mb-3">{item.icon}</div>
 
                                         <div className="text-center mb-4">
                                             <p className="text-gray-700 font-semibold text-lg">{item.label}</p>
@@ -244,10 +279,9 @@ export default function Dashboard() {
                                             ) : (
                                                 <Ticket size={42} className="text-gray-600" strokeWidth={1.8} />
                                             )}
-
                                             <span className={`text-6xl font-extrabold ${status.color} tracking-tight`}>
-                                                {item.value}
-                                            </span>
+                        {item.value}
+                      </span>
                                         </div>
                                     </div>
                                 );
@@ -255,7 +289,7 @@ export default function Dashboard() {
                         </div>
 
                         <p className="text-xs text-gray-500 mt-3 text-center">
-                            Mis à jour : {new Date(ticketsData.updated_at).toLocaleTimeString('fr-FR')}
+                            Mis à jour : {ticketsData?.updated_at ? new Date(ticketsData.updated_at).toLocaleTimeString('fr-FR') : '—'}
                         </p>
                     </div>
 
@@ -279,7 +313,9 @@ export default function Dashboard() {
                         </div>
 
                         <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border-2 border-gray-200 flex-1 flex flex-col justify-center">
-                            <div className={`${currentAs400.color} text-white px-4 py-2 rounded-xl text-center mb-5 shadow-lg flex items-center justify-center gap-3`}>
+                            <div
+                                className={`${currentAs400.color} text-white px-4 py-2 rounded-xl text-center mb-5 shadow-lg flex items-center justify-center gap-3`}
+                            >
                                 <CurrentAs400Icon size={28} />
                                 <span className="text-xl font-bold">{currentAs400.name}</span>
                             </div>
@@ -293,26 +329,33 @@ export default function Dashboard() {
                                     <div className="w-10 h-10 rounded-full bg-white"></div>
                                 </div>
                                 <div className="text-center">
-                                    <p className={`text-2xl font-bold mb-1 ${currentAs400.data?.available ? 'text-green-600' : 'text-red-600'}`}>
+                                    <p
+                                        className={`text-2xl font-bold mb-1 ${
+                                            currentAs400.data?.available ? 'text-green-600' : 'text-red-600'
+                                        }`}
+                                    >
                                         {currentAs400.data?.available ? 'DISPONIBLE' : 'INDISPONIBLE'}
                                     </p>
-                                    <p className="text-lg font-semibold text-gray-800">{currentAs400.data?.host || '-'}</p>
+                                    <p className="text-lg font-semibold text-gray-800">{currentAs400.data?.host || '—'}</p>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-white rounded-lg p-4 text-center shadow">
                                     <p className="text-gray-600 text-xs mb-1">Version</p>
-                                    <p className="text-xl font-bold text-gray-900">{currentAs400.data?.version || '-'}</p>
+                                    <p className="text-xl font-bold text-gray-900">{currentAs400.data?.version || '—'}</p>
                                 </div>
                                 <div className="bg-white rounded-lg p-4 text-center shadow">
                                     <p className="text-gray-600 text-xs mb-1">Temps de réponse</p>
-                                    <p className="text-xl font-bold text-blue-600">{currentAs400.data?.responseTime || '-'}</p>
+                                    <p className="text-xl font-bold text-blue-600">{currentAs400.data?.responseTime || '—'}</p>
                                 </div>
                             </div>
 
                             <p className="text-xs text-gray-500 mt-4 text-center">
-                                Mis à jour : {currentAs400.data?.timestamp ? new Date(currentAs400.data.timestamp).toLocaleTimeString('fr-FR') : '-'}
+                                Mis à jour :{' '}
+                                {currentAs400.data?.timestamp
+                                    ? new Date(currentAs400.data.timestamp).toLocaleTimeString('fr-FR')
+                                    : '—'}
                             </p>
                         </div>
                     </div>
