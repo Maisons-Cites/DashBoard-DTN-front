@@ -180,27 +180,59 @@ export default function Dashboard() {
         crees: ticketsData?.crees_aujourdhui ?? 0,
     };
 
-    const getTicketStatus = (count: number, threshold?: number) => {
-        if (!threshold)
-            return {
-                color: 'text-gray-700',
-                bg: 'bg-gradient-to-br from-gray-50 to-gray-100',
-                type: 'neutral',
-            };
+    const getTicketStatus = (
+        item: { label: string; value: number; threshold?: number },
+        createdToday: number
+    ) => {
+        const count = item.value;
 
-        if (count >= threshold * 1.5)
+        // Logique spéciale pour "Résolus" (comparaison avec les tickets créés)
+        if (item.label === 'Résolus') {
+            if (count >= createdToday) {
+                return {
+                    color: 'text-green-600',
+                    bg: 'bg-gradient-to-br from-green-50 to-green-100',
+                    type: 'good',
+                };
+            }
+            if (count >= createdToday - 5) {
+                return {
+                    color: 'text-orange-600',
+                    bg: 'bg-gradient-to-br from-orange-50 to-orange-100',
+                    type: 'warning',
+                };
+            }
             return {
                 color: 'text-red-600',
                 bg: 'bg-gradient-to-br from-red-50 to-red-100',
                 type: 'error',
             };
+        }
 
-        if (count >= threshold)
+        // Logique standard pour les autres cartes (seuils fixes)
+        if (typeof item.threshold !== 'number') {
+            return {
+                color: 'text-gray-700',
+                bg: 'bg-gradient-to-br from-gray-50 to-gray-100',
+                type: 'neutral',
+            };
+        }
+
+        if (count >= item.threshold * 1.5) {
+            return {
+                color: 'text-red-600',
+                bg: 'bg-gradient-to-br from-red-50 to-red-100',
+                type: 'error',
+            };
+        }
+
+        if (count >= item.threshold) {
             return {
                 color: 'text-orange-600',
                 bg: 'bg-gradient-to-br from-orange-50 to-orange-100',
                 type: 'warning',
             };
+        }
 
         return {
             color: 'text-green-600',
@@ -225,11 +257,13 @@ export default function Dashboard() {
         {
             label: 'Résolus',
             value: tickets.resolus,
+            // Pas de threshold fixe → on va utiliser une logique spéciale
             icon: <CheckCircle2 size={40} />,
         },
         {
             label: 'Créés',
             value: tickets.crees,
+            threshold: 40,           // ← ajouté ici
             icon: <MessageSquare size={40} />,
         },
     ];
@@ -297,27 +331,37 @@ export default function Dashboard() {
 
                         <div className="grid grid-cols-2 gap-4">
                             {ticketCards.map((item, i) => {
-                                const status = getTicketStatus(
-                                    item.value,
-                                    item.threshold
-                                );
+                                const status = getTicketStatus(item, tickets.crees); // ← on passe le nombre de créés
 
                                 return (
                                     <div
                                         key={i}
-                                        className={`${status.bg} rounded-xl p-4 border-2 border-gray-200 flex flex-col items-center shadow-lg`}
+                                        className={`${status.bg} rounded-xl p-5 border-2 border-gray-200 flex flex-col items-center justify-center shadow-lg min-h-[180px]`}
                                     >
-                                        <div className="text-gray-600 mb-2">
-                                            {item.icon}
-                                        </div>
-                                        <p className="text-sm font-semibold text-gray-700">
-                                            {item.label}
-                                        </p>
-                                        <span
-                                            className={`text-5xl font-extrabold ${status.color}`}
-                                        >
-                                            {item.value}
-                                        </span>
+                                        <div className="text-gray-600 mb-3">{item.icon}</div>
+
+                                        <p className="text-sm font-semibold text-gray-700 mb-1">{item.label}</p>
+
+                                        <span className={`text-5xl md:text-6xl font-extrabold ${status.color}`}>
+          {item.value}
+        </span>
+
+                                        {/* Affichage du seuil ou info contexte */}
+                                        {item.label === 'Créés' && typeof item.threshold === 'number' && (
+                                            <div className="mt-2 text-xs font-medium text-gray-500 flex items-center gap-1.5">
+                                                seuil : <span className={status.type === 'error' ? 'text-red-600 font-semibold' : 'text-gray-700'}>{item.threshold}</span>
+                                            </div>
+                                        )}
+
+                                        {item.label === 'Résolus' && (
+                                            <div className="mt-2 text-xs text-gray-600">
+                                                {item.value >= tickets.crees
+                                                    ? '✓ À jour'
+                                                    : tickets.crees - item.value === 1
+                                                        ? '1 ticket en retard'
+                                                        : `${tickets.crees - item.value} tickets en retard`}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
