@@ -209,6 +209,10 @@ export default function Dashboard() {
         };
     };
 
+    const SEUIL_TICKETS_CREES = 40;
+    const SEUIL_TICKETS_RESOLUS = SEUIL_TICKETS_CREES;
+
+
     const ticketCards = [
         {
             label: 'En cours',
@@ -225,14 +229,19 @@ export default function Dashboard() {
         {
             label: 'Résolus',
             value: tickets.resolus,
+            threshold: SEUIL_TICKETS_RESOLUS,
             icon: <CheckCircle2 size={40} />,
+            thresholdLabel: `Seuil ≥ ${SEUIL_TICKETS_RESOLUS}`,
         },
         {
             label: 'Créés',
             value: tickets.crees,
+            threshold: 40,
             icon: <MessageSquare size={40} />,
+            thresholdLabel: `Seuil ${SEUIL_TICKETS_CREES}`,
         },
     ];
+
 
     /* ---------------- IBM i ---------------- */
 
@@ -318,6 +327,11 @@ export default function Dashboard() {
                                         >
                                             {item.value}
                                         </span>
+                                        {item.threshold && (
+                                            <p className="mt-1 text-xs font-semibold text-gray-600">
+                                                {item.thresholdLabel || `Seuil ${item.threshold}`}
+                                            </p>
+                                        )}
                                     </div>
                                 );
                             })}
