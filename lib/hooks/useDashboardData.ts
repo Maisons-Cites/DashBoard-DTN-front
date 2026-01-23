@@ -12,7 +12,7 @@ const fetcher = (url: string) =>
 
 const BACKEND_URL =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
-    'https://dashboard-dtn.maisonsetcites.fr';
+    'https://dashboard-dtn-t.maisonsetcites.fr';
 
 export function useDashboardData() {
     const { data: permData, error: errPerm } = useSWR(
